@@ -10,9 +10,9 @@ import {
   UploadFlowState,
   UploadFlowActions,
   MashujaaStory,
-  ImageAnalysisResult,
-  StoryGenerationResult,
-  VoiceSynthesisResult,
+  // ImageAnalysisResult,
+  // StoryGenerationResult,
+  // VoiceSynthesisResult,
 } from '../types/gemini';
 
 // Initial state

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { useStorytellingWorkflow } from '../hooks/useGeminiServices';
-import { useUploadFlowStore, useStoriesStore } from '../store/uploadFlowStore';
+import { useUploadFlowStore } from '../store/uploadFlowStore';
 import { ImageAnalysisService } from '../services/imageAnalysis';
 
 const Upload = () => {

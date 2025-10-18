@@ -7,7 +7,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Download, Volume2, RotateCcw, SkipBack, SkipForward } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { VoiceSynthesisService } from '../../services/voiceSynthesis';
-import { VoiceSynthesisResult } from '../../types/gemini';
+// import { VoiceSynthesisResult } from '../../types/gemini';
 import { Button } from '../ui/Button';
 
 interface AudioPlayerProps {
