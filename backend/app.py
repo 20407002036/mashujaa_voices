@@ -16,9 +16,20 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# More permissive CORS configuration for development - include both 3000 and 5173
+# CORS configuration for both development and production
+allowed_origins = [
+    "http://localhost:3000", 
+    "http://localhost:5173", 
+    "http://127.0.0.1:3000", 
+    "http://127.0.0.1:5173"
+]
+
+# Add production origins if available
+if os.getenv('FRONTEND_URL'):
+    allowed_origins.append(os.getenv('FRONTEND_URL'))
+
 CORS(app, 
-     origins=["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000", "http://127.0.0.1:5173"], 
+     origins=allowed_origins + ["https://*.vercel.app"], 
      supports_credentials=True,
      allow_headers=["Content-Type", "Authorization", "Accept"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -28,20 +39,19 @@ CORS(app,
 @app.after_request
 def after_request(response):
     origin = request.headers.get('Origin')
-    allowed_origins = ['http://localhost:3000', 'http://localhost:5173','http://localhost:5000', 'http://127.0.0.1:3000', 'http://127.0.0.1:5173', 'http://192.168.1.8:3000']
-    if origin in allowed_origins:
+    allowed_origins_list = ['http://localhost:3000', 'http://localhost:5173','http://localhost:5000', 'http://127.0.0.1:3000', 'http://127.0.0.1:5173', 'http://192.168.1.8:3000']
+    if origin and (origin in allowed_origins_list or '.vercel.app' in origin):
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, Accept'
     return response
 
-# Create audio storage directory
-AUDIO_DIR = os.path.join(os.path.dirname(__file__), 'audio_files')
+# Create temporary directories for serverless environment
+AUDIO_DIR = os.path.join(tempfile.gettempdir(), 'audio_files')
 os.makedirs(AUDIO_DIR, exist_ok=True)
 
-# Create image storage directory
-IMAGE_DIR = os.path.join(os.path.dirname(__file__), 'uploaded_images')
+IMAGE_DIR = os.path.join(tempfile.gettempdir(), 'uploaded_images')
 os.makedirs(IMAGE_DIR, exist_ok=True)
 
 # Initialize Gemini client
@@ -491,11 +501,16 @@ def not_found(error):
 def internal_error(error):
     return jsonify({'error': 'Internal server error'}), 500
 
+# Vercel serverless function handler
+def handler(request):
+    return app
+
+# For local development
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('DEBUG', 'False').lower() == 'true'
     
-    print(f"Starting Mashijaa Voices API on port {port}")
+    print(f"Starting Mashujaa Voices API on port {port}")
     print(f"Debug mode: {debug}")
     
     app.run(host='0.0.0.0', port=port, debug=debug)
