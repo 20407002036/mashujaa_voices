@@ -40,7 +40,7 @@ const About: React.FC = () => {
           </ul>
 
           <div className="mt-12 text-center text-sm text-stone-400 font-sans">
-            <p>Built with ❤️ using Gemini API.</p>
+            <p>Built with ❤️ by Solomon Kaniaru.</p>
           </div>
         </div>
       </motion.div>
