@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+*.log
+*.env
+*.pyc
+__pycache__/
+*.db
+*.sqlite3
+*.mp3
+*.wav
+*.ogg
+*.flac
+*.jpg   

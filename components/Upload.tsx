@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { Upload as UploadIcon, X, FileImage, Loader2, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { generateStory, generateSpeech } from '../services/geminiService';
+
 import { GeneratedContent, AppStatus } from '../types';
 import Result from './Result';
+import { generateFullStory } from '../services/backendService';
 
 const Upload: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -12,6 +13,8 @@ const Upload: React.FC = () => {
   const [status, setStatus] = useState<AppStatus>(AppStatus.IDLE);
   const [result, setResult] = useState<GeneratedContent | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [userConsented, setUserConsented] = useState(false);
+  const [isPublic, setIsPublic] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -53,30 +56,42 @@ const Upload: React.FC = () => {
   };
 
   const handleGenerate = async () => {
-    if (!imagePreview) return;
-
+    if (!imagePreview || !file) return;
+    if (!userConsented) {
+      setErrorMsg('You must consent to save your story.');
+      return;
+    }
     try {
       setStatus(AppStatus.ANALYZING);
       
-      // 1. Remove data:image/...;base64, header
-      const base64Data = imagePreview.split(',')[1];
-
-      // 2. Generate Story
-      const storyData = await generateStory(base64Data, context);
-      
-      setStatus(AppStatus.GENERATING_AUDIO);
-
-      // 3. Generate Audio
-      const audioData = await generateSpeech(storyData.content);
-
-      setResult({
-        story: storyData,
-        audio: audioData,
-        imageUrl: imagePreview
+      // Call backend API to generate full story with audio
+      const response = await generateFullStory({
+        image: file,
+        context: context || undefined,
+        user_consented: userConsented,
+        is_public: isPublic,
+        user_id: 'anonymous',
       });
 
+      // Backend returns the story data, audio URL, and image URL
+      setStatus(AppStatus.GENERATING_AUDIO);
+      
+      // Validate response before setting state
+      if (!response.story || !response.story.title || !response.story.content) {
+        throw new Error('Invalid response from backend: missing story data');
+      }
+      
+      // Convert audio URL to the format expected by Result component
+      setResult({
+        story: response.story,
+        audio: {
+          blobUrl: response.audio_url,
+          buffer: null, // Not needed when using URL
+        },
+        imageUrl: response.image_url,
+      });
+      
       setStatus(AppStatus.COMPLETE);
-
     } catch (err: any) {
       console.error(err);
       setStatus(AppStatus.ERROR);
@@ -169,14 +184,36 @@ const Upload: React.FC = () => {
                 />
               </div>
 
+
+              {/* Consent and Gallery Visibility */}
+              <div className="mt-6 flex flex-col gap-2">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={userConsented}
+                    onChange={e => setUserConsented(e.target.checked)}
+                  />
+                  <span className="text-stone-700 text-sm">I consent to saving my story and media to Supabase.</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={isPublic}
+                    onChange={e => setIsPublic(e.target.checked)}
+                    disabled={!userConsented}
+                  />
+                  <span className="text-stone-700 text-sm">Allow my story to appear in the public Gallery.</span>
+                </label>
+              </div>
+
               {/* Action Buttons */}
               <div className="mt-8 flex justify-end">
                 <button
                   onClick={handleGenerate}
-                  disabled={!imagePreview}
+                  disabled={!imagePreview || !userConsented}
                   className={`flex items-center gap-2 px-8 py-4 rounded-full text-lg font-semibold shadow-lg transition-all ${
-                    imagePreview 
-                      ? 'bg-papaya text-white hover:bg-papaya-600 hover:-translate-y-1' 
+                    imagePreview && userConsented
+                      ? 'bg-papaya text-white hover:bg-papaya-600 hover:-translate-y-1'
                       : 'bg-stone-200 text-stone-400 cursor-not-allowed'
                   }`}
                 >
