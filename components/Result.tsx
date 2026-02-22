@@ -12,6 +12,23 @@ interface ResultProps {
 const Result: React.FC<ResultProps> = ({ content, onBack }) => {
   const { story, audio, imageUrl } = content;
 
+  // Safety check: ensure story data exists
+  if (!story || !story.title) {
+    return (
+      <div className="min-h-screen bg-stone-50 py-12 px-4 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-stone-600">Story data is unavailable. Please try generating again.</p>
+          <button 
+            onClick={onBack}
+            className="mt-4 px-6 py-2 bg-heritage-green text-white rounded-lg hover:bg-green-800 transition-colors"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-stone-50 py-12 px-4 sm:px-6 lg:px-8">
       <motion.div 
