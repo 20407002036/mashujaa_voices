@@ -81,11 +81,8 @@ class GenerateFullRequestSerializer(serializers.Serializer):
 
 class GenerateFullResponseSerializer(serializers.Serializer):
     """Response serializer for full generation pipeline."""
-    story_id = serializers.UUIDField()
-    title = serializers.CharField()
-    content = serializers.CharField()
-    year = serializers.CharField(allow_null=True)
-    region = serializers.CharField(allow_null=True)
+    story_id = serializers.IntegerField()
+    story = GenerateStoryResponseSerializer()
     image_url = serializers.URLField()
     audio_url = serializers.URLField(allow_null=True)
 

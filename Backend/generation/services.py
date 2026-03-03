@@ -76,3 +76,20 @@ class MediaService:
         
         # Fallback for local storage
         return f"{settings.MEDIA_URL}{saved_path}"
+    
+    @staticmethod
+    def get_proxy_urls(story_id) -> dict:
+        """
+        Generate proxy URLs for media files.
+        
+        Args:
+            story_id: UUID of the story
+            
+        Returns:
+            Dictionary with image_url and audio_url as proxy endpoints
+        """
+        base_url = settings.BACKEND_URL or 'http://localhost:8000'
+        return {
+            'image_url': f"{base_url}/api/media/image/{story_id}/",
+            'audio_url': f"{base_url}/api/media/audio/{story_id}/",
+        }

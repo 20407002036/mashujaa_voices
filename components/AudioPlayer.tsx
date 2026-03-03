@@ -7,6 +7,7 @@ interface AudioPlayerProps {
 }
 
 const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioBuffer, blobUrl }) => {
+  const audioRef = useRef<HTMLAudioElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
@@ -17,17 +18,59 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioBuffer, blobUrl }) => {
   // For visualization
   const animationRef = useRef<number>();
   const analyserRef = useRef<AnalyserNode | null>(null);
+  const analyserNodeRef = useRef<AnalyserNode | null>(null);
+
+  // Use URL-based audio if available, otherwise use audioBuffer
+  const useUrlBasedAudio = !!blobUrl && !audioBuffer;
 
   useEffect(() => {
-    // Initialize Audio Context on mount
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    setAudioContext(ctx);
-    
-    return () => {
-      ctx.close();
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    };
-  }, []);
+    if (!useUrlBasedAudio) {
+      // Initialize Audio Context on mount (for audioBuffer playback)
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      setAudioContext(ctx);
+      
+      return () => {
+        ctx.close();
+        if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      };
+    }
+  }, [useUrlBasedAudio]);
+
+  useEffect(() => {
+    // Setup audio event listeners for URL-based audio
+    if (useUrlBasedAudio && audioRef.current) {
+      const audio = audioRef.current;
+
+      const handlePlay = () => setIsPlaying(true);
+      const handlePause = () => setIsPlaying(false);
+      const handleEnded = () => {
+        setIsPlaying(false);
+        // Reset canvas
+        if (canvasRef.current) {
+          const ctx = canvasRef.current.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = '#FAF9F6';
+            ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+            ctx.beginPath();
+            ctx.strokeStyle = '#E55F32';
+            ctx.moveTo(0, canvasRef.current.height / 2);
+            ctx.lineTo(canvasRef.current.width, canvasRef.current.height / 2);
+            ctx.stroke();
+          }
+        }
+      };
+
+      audio.addEventListener('play', handlePlay);
+      audio.addEventListener('pause', handlePause);
+      audio.addEventListener('ended', handleEnded);
+
+      return () => {
+        audio.removeEventListener('play', handlePlay);
+        audio.removeEventListener('pause', handlePause);
+        audio.removeEventListener('ended', handleEnded);
+      };
+    }
+  }, [useUrlBasedAudio]);
 
   const draw = () => {
     if (!canvasRef.current || !analyserRef.current) return;
@@ -72,55 +115,61 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioBuffer, blobUrl }) => {
   };
 
   const playAudio = async () => {
-    if (!audioContext || !audioBuffer) return;
+    if (useUrlBasedAudio && audioRef.current) {
+      // Use HTML5 audio for URL-based playback
+      audioRef.current.play().catch(err => console.error('Playback error:', err));
+    } else if (!audioContext || !audioBuffer) {
+      return;
+    } else {
+      // Use Web Audio API for audioBuffer playback
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
 
-    if (audioContext.state === 'suspended') {
-      await audioContext.resume();
+      const source = audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 2048;
+      
+      source.connect(analyser);
+      analyser.connect(audioContext.destination);
+      
+      analyserRef.current = analyser;
+
+      source.start(0, pausedAt);
+      setStartTime(audioContext.currentTime - pausedAt);
+      setSourceNode(source);
+      setIsPlaying(true);
+
+      source.onended = () => {
+          if (audioContext.currentTime - startTime >= audioBuffer.duration) {
+              setIsPlaying(false);
+              setPausedAt(0);
+              if (animationRef.current) cancelAnimationFrame(animationRef.current);
+               // Reset canvas
+              const canvas = canvasRef.current;
+              const ctx = canvas?.getContext('2d');
+              if (canvas && ctx) {
+                  ctx.fillStyle = '#FAF9F6';
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+                  ctx.beginPath();
+                  ctx.strokeStyle = '#E55F32';
+                  ctx.moveTo(0, canvas.height/2);
+                  ctx.lineTo(canvas.width, canvas.height/2);
+                  ctx.stroke();
+              }
+          }
+      };
+      
+      draw();
     }
-
-    const source = audioContext.createBufferSource();
-    source.buffer = audioBuffer;
-    
-    const analyser = audioContext.createAnalyser();
-    analyser.fftSize = 2048;
-    
-    source.connect(analyser);
-    analyser.connect(audioContext.destination);
-    
-    analyserRef.current = analyser;
-
-    source.start(0, pausedAt);
-    setStartTime(audioContext.currentTime - pausedAt);
-    setSourceNode(source);
-    setIsPlaying(true);
-
-    source.onended = () => {
-        // If it ended naturally (not stopped by us)
-        if (audioContext.currentTime - startTime >= audioBuffer.duration) {
-            setIsPlaying(false);
-            setPausedAt(0);
-            if (animationRef.current) cancelAnimationFrame(animationRef.current);
-             // Reset canvas
-            const canvas = canvasRef.current;
-            const ctx = canvas?.getContext('2d');
-            if (canvas && ctx) {
-                ctx.fillStyle = '#FAF9F6';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                // Draw a straight line
-                ctx.beginPath();
-                ctx.strokeStyle = '#E55F32';
-                ctx.moveTo(0, canvas.height/2);
-                ctx.lineTo(canvas.width, canvas.height/2);
-                ctx.stroke();
-            }
-        }
-    };
-    
-    draw();
   };
 
   const pauseAudio = () => {
-    if (sourceNode && audioContext) {
+    if (useUrlBasedAudio && audioRef.current) {
+      audioRef.current.pause();
+    } else if (sourceNode && audioContext) {
       sourceNode.stop();
       setPausedAt(audioContext.currentTime - startTime);
       setSourceNode(null);
@@ -158,6 +207,15 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioBuffer, blobUrl }) => {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-stone-200 p-4 w-full">
+      {useUrlBasedAudio && blobUrl && (
+        <audio 
+          ref={audioRef} 
+          src={blobUrl} 
+          crossOrigin="anonymous"
+          style={{ display: 'none' }}
+        />
+      )}
+      
       <div className="flex items-center gap-4">
         <button
           onClick={togglePlay}

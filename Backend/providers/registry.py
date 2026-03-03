@@ -7,7 +7,7 @@ from django.conf import settings
 
 from .base import VisionProvider, TTSProvider
 from .gemini import GeminiVisionProvider, GeminiTTSProvider
-from .groq import GroqTTSProvider
+from .edge_tts import EdgeTTSProvider
 from .qwen import QwenTTSProvider
 
 
@@ -17,7 +17,7 @@ VISION_PROVIDERS: dict[str, Type[VisionProvider]] = {
 }
 
 TTS_PROVIDERS: dict[str, Type[TTSProvider]] = {
-    'groq': GroqTTSProvider,
+    'edge-tts': EdgeTTSProvider,
     'gemini': GeminiTTSProvider,
     'qwen': QwenTTSProvider,
 }
