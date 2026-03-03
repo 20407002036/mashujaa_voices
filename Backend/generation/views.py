@@ -161,14 +161,19 @@ class GenerateFullView(APIView):
                 user_id='anonymous',
             )
             
+            # Generate proxy URLs for response
+            proxy_urls = MediaService.get_proxy_urls(story.id)
+            
             response_data = {
                 'story_id': story.id,
-                'title': story.title,
-                'content': story.content,
-                'year': story.year,
-                'region': story.region,
-                'image_url': story.image_url,
-                'audio_url': story.audio_url,
+                'story': {
+                    'title': story.title,
+                    'content': story.content,
+                    'year': story.year,
+                    'region': story.region,
+                },
+                'image_url': proxy_urls['image_url'],
+                'audio_url': proxy_urls['audio_url'],
             }
             
             return Response(

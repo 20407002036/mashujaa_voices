@@ -133,6 +133,8 @@ CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
 ])
 CORS_ALLOW_CREDENTIALS = True
 
+# Backend URL for proxy endpoints
+BACKEND_URL = env('BACKEND_URL', default='http://localhost:8000')
 
 # AI Provider Settings
 VISION_PROVIDER = env('VISION_PROVIDER')
