@@ -27,8 +27,18 @@ def api_root(request):
     })
 
 
+@api_view(['GET'])
+def health_check(request):
+    """Health check endpoint."""
+    return Response({
+        'status': 'healthy',
+        'service': 'Mashujaa Voices API'
+    })
+
+
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('health/', health_check, name='health-check'),
     path('api/', api_root, name='api-root'),
     path('api/', include('core.urls')),
     path('api/generate/', include('generation.urls')),
