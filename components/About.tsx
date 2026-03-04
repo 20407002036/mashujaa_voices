@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { Twitter, Github } from 'lucide-react';
 
 const About: React.FC = () => {
   return (
@@ -39,8 +40,28 @@ const About: React.FC = () => {
             <li><strong>Voice Synthesis:</strong> A warm, documentary-style voice brings the text to life.</li>
           </ul>
 
-          <div className="mt-12 text-center text-sm text-stone-400 font-sans">
-            <p>Built with ❤️ by Solomon Kaniaru.</p>
+          <div className="mt-12 text-center font-sans">
+            <p className="text-sm text-stone-600 mb-4">Built with ❤️ by Solomon Kaniaru</p>
+            <div className="flex justify-center gap-6">
+              <a 
+                href="https://twitter.com/KaniaruSolomon" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-stone-600 hover:text-papaya transition-colors duration-200"
+              >
+                <Twitter size={20} />
+                <span className="text-sm font-medium">@KaniaruSolomon</span>
+              </a>
+              <a 
+                href="https://github.com/20407002036" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-stone-600 hover:text-heritage-green transition-colors duration-200"
+              >
+                <Github size={20} />
+                <span className="text-sm font-medium">GitHub</span>
+              </a>
+            </div>
           </div>
         </div>
       </motion.div>

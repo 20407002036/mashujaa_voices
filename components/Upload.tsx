@@ -76,6 +76,11 @@ const Upload: React.FC = () => {
       // Backend returns the story data, audio URL, and image URL
       setStatus(AppStatus.GENERATING_AUDIO);
       
+      // Log the response for debugging
+      console.log('Backend response:', response);
+      console.log('Image URL:', response.image_url);
+      console.log('Audio URL:', response.audio_url);
+      
       // Validate response before setting state
       if (!response.story || !response.story.title || !response.story.content) {
         throw new Error('Invalid response from backend: missing story data');
@@ -91,6 +96,7 @@ const Upload: React.FC = () => {
         imageUrl: response.image_url,
       });
       
+      console.log('Set result with imageUrl:', response.image_url);
       setStatus(AppStatus.COMPLETE);
     } catch (err: any) {
       console.error(err);

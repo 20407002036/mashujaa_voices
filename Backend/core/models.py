@@ -27,6 +27,10 @@ class Story(models.Model):
         ordering = ['-created_at']
         verbose_name = 'Story'
         verbose_name_plural = 'Stories'
+        indexes = [
+            models.Index(fields=['is_public', 'user_consented', '-created_at'], name='gallery_idx'),
+            models.Index(fields=['-created_at'], name='created_at_idx'),
+        ]
 
     def __str__(self):
         return self.title

@@ -33,18 +33,18 @@ class StorySerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at', 'excerpt']
     
     def get_image_url(self, obj):
-        """Convert S3 URL to proxy URL."""
-        if obj.image_url:
-            base_url = settings.BACKEND_URL or 'http://localhost:8000'
-            return f"{base_url}/api/media/image/{obj.id}/"
-        return None
+        """Convert S3 API URL to public URL."""
+        if not obj.image_url:
+            return None
+        # Convert /storage/v1/s3/ to /storage/v1/object/public/
+        return obj.image_url.replace('/storage/v1/s3/', '/storage/v1/object/public/')
     
     def get_audio_url(self, obj):
-        """Convert S3 URL to proxy URL."""
-        if obj.audio_url:
-            base_url = settings.BACKEND_URL or 'http://localhost:8000'
-            return f"{base_url}/api/media/audio/{obj.id}/"
-        return None
+        """Convert S3 API URL to public URL."""
+        if not obj.audio_url:
+            return None
+        # Convert /storage/v1/s3/ to /storage/v1/object/public/
+        return obj.audio_url.replace('/storage/v1/s3/', '/storage/v1/object/public/')
 
 
 class StoryCreateSerializer(serializers.ModelSerializer):
@@ -97,15 +97,15 @@ class GalleryItemSerializer(serializers.ModelSerializer):
         return obj.region or 'Kenya'
     
     def get_image_url(self, obj):
-        """Convert S3 URL to proxy URL."""
-        if obj.image_url:
-            base_url = settings.BACKEND_URL or 'http://localhost:8000'
-            return f"{base_url}/api/media/image/{obj.id}/"
-        return None
+        """Convert S3 API URL to public URL."""
+        if not obj.image_url:
+            return None
+        # Convert /storage/v1/s3/ to /storage/v1/object/public/
+        return obj.image_url.replace('/storage/v1/s3/', '/storage/v1/object/public/')
     
     def get_audio_url(self, obj):
-        """Convert S3 URL to proxy URL."""
-        if obj.audio_url:
-            base_url = settings.BACKEND_URL or 'http://localhost:8000'
-            return f"{base_url}/api/media/audio/{obj.id}/"
-        return None
+        """Convert S3 API URL to public URL."""
+        if not obj.audio_url:
+            return None
+        # Convert /storage/v1/s3/ to /storage/v1/object/public/
+        return obj.audio_url.replace('/storage/v1/s3/', '/storage/v1/object/public/')

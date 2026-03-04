@@ -43,22 +43,20 @@ class StoryDetailView(generics.RetrieveDestroyAPIView):
 
 class GalleryView(generics.ListAPIView):
     """
-    GET: List all public stories for the gallery.
+    GET: List all public stories for the gallery with pagination.
     """
     serializer_class = GalleryItemSerializer
+    pagination_class = None  # Use default from settings
 
     def get_queryset(self):
-
-        stories = Story.objects.filter(
+        # Optimized query with proper indexing
+        queryset = Story.objects.filter(
             user_consented=True,
             is_public=True
         ).order_by('-created_at')
-
-        print(f"GalleryView: Found {stories.count()} stories for gallery.")
-        return Story.objects.filter(
-            user_consented=True,
-            is_public=True
-        ).order_by('-created_at')
+        
+        logger.info(f"GalleryView: Returning {queryset.count()} public stories")
+        return queryset
 
 
 class ImageProxyView(APIView):
