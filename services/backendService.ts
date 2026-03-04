@@ -65,10 +65,10 @@ export async function generateFullStory(request: GenerateFullRequest): Promise<G
 }
 
 /**
- * Fetch public stories for the gallery
+ * Fetch public stories for the gallery with pagination
  */
-export async function fetchGalleryStories(): Promise<GalleryStory[]> {
-  const response = await fetch(`${API_BASE_URL}/api/gallery/`);
+export async function fetchGalleryStories(page: number = 1): Promise<{ results: GalleryStory[], count: number, next: string | null, previous: string | null }> {
+  const response = await fetch(`${API_BASE_URL}/api/gallery/?page=${page}`);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch gallery: ${response.status}`);
@@ -78,7 +78,17 @@ export async function fetchGalleryStories(): Promise<GalleryStory[]> {
   console.log("fetchGalleryStories: Received response from backend:", data);
   
   // Handle paginated response from Django REST Framework
-  return data.results || data;
+  if (data.results) {
+    return data;  // Paginated response
+  }
+  
+  // Fallback for non-paginated response
+  return {
+    results: Array.isArray(data) ? data : [],
+    count: Array.isArray(data) ? data.length : 0,
+    next: null,
+    previous: null,
+  };
 }
 
 

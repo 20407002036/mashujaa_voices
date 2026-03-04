@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Play } from 'lucide-react';
 import { fetchGalleryStories, fetchStory } from '../services/backendService';
@@ -10,21 +10,70 @@ import { GeneratedContent } from '../types';
 const Gallery: React.FC = () => {
   const [stories, setStories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedStory, setSelectedStory] = useState<GeneratedContent | null>(null);
   const [loadingStory, setLoadingStory] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const observerTarget = useRef<HTMLDivElement>(null);
+
+  const loadStories = useCallback(async (page: number) => {
+    try {
+      if (page === 1) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+      
+      const data = await fetchGalleryStories(page);
+      
+      if (page === 1) {
+        setStories(data.results);
+      } else {
+        setStories(prev => [...prev, ...data.results]);
+      }
+      
+      setHasMore(data.next !== null);
+      setLoading(false);
+      setLoadingMore(false);
+    } catch (err) {
+      setError('Failed to load stories.');
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchGalleryStories()
-      .then(data => {
-        setStories(Array.isArray(data) ? data : []);
-        setLoading(false);
-      })
-      .catch(err => {
-        setError('Failed to load stories.');
-        setLoading(false);
-      });
-  }, []);
+    loadStories(1);
+  }, [loadStories]);
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          setCurrentPage(prev => {
+            const nextPage = prev + 1;
+            loadStories(nextPage);
+            return nextPage;
+          });
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, loadingMore, loading, loadStories]);
 
   const handleStoryClick = async (storyId: string) => {
     console.log('Card clicked! Story ID:', storyId);
@@ -92,7 +141,9 @@ const Gallery: React.FC = () => {
                <div className="relative aspect-[4/3] overflow-hidden">
                  <img 
                    src={item.image_url} 
-                   alt={item.title} 
+                   alt={item.title}
+                   loading="lazy"
+                   decoding="async"
                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 filter sepia-[0.2]"
                  />
                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80" />
@@ -129,6 +180,18 @@ const Gallery: React.FC = () => {
                </div>
              </motion.div>
            ))}
+         </div>
+       )}
+       
+       {/* Infinite Scroll Trigger */}
+       {!loading && stories.length > 0 && (
+         <div ref={observerTarget} className="py-8 text-center">
+           {loadingMore && (
+             <div className="text-stone-400">Loading more stories...</div>
+           )}
+           {!hasMore && stories.length > 0 && (
+             <div className="text-stone-400 text-sm">You've reached the end</div>
+           )}
          </div>
        )}
     </div>

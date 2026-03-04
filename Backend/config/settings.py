@@ -82,10 +82,20 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
+# Configure PostgreSQL via DATABASE_URL env var:
+# postgresql://user:password@localhost:5432/dbname
+# Defaults to SQLite for development
 
 DATABASES = {
     'default': env.db('DATABASE_URL', default=f'sqlite:///{BASE_DIR / "db.sqlite3"}')
 }
+
+# PostgreSQL connection pooling (if using PostgreSQL)
+if 'postgresql' in DATABASES['default']['ENGINE']:
+    DATABASES['default']['CONN_MAX_AGE'] = 600  # 10 minutes
+    DATABASES['default']['OPTIONS'] = {
+        'connect_timeout': 10,
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -168,4 +178,10 @@ if SUPABASE_S3_ACCESS_KEY and SUPABASE_S3_SECRET_KEY:
     AWS_S3_ENDPOINT_URL = SUPABASE_S3_ENDPOINT
     AWS_S3_REGION_NAME = 'auto'
     AWS_DEFAULT_ACL = 'public-read'
-    AWS_QUERYSTRING_AUTH = False
+    AWS_QUERYSTRING_AUTH = False  # No signed URLs, direct public access
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_S3_CUSTOM_DOMAIN = None  # Direct S3 URLs
+    # Cache control for browser caching
+    AWS_S3_OBJECT_PARAMETERS = {
+        'CacheControl': 'max-age=86400',  # 24 hours
+    }

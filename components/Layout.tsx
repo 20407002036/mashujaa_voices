@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Mic, BookOpen, Menu, X } from 'lucide-react';
+import { Mic, BookOpen, Menu, X, Twitter, Github } from 'lucide-react';
 import { useState } from 'react';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -97,15 +97,40 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
       {/* Footer */}
       <footer className="relative z-10 bg-heritage-green text-stone-300 py-12 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2">
-            <BookOpen size={20} className="text-papaya" />
-            <span className="font-serif font-bold text-lg">Mashujaa Voices</span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-2">
+              <BookOpen size={20} className="text-papaya" />
+              <span className="font-serif font-bold text-lg">Mashujaa Voices</span>
+            </div>
+            
+            {/* Social Media Links */}
+            <div className="flex items-center gap-4">
+              <a 
+                href="https://twitter.com/KaniaruSolomon" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-stone-300 hover:text-papaya transition-colors duration-200"
+                aria-label="Twitter"
+              >
+                <Twitter size={20} />
+              </a>
+              <a 
+                href="https://github.com/20407002036" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-stone-300 hover:text-papaya transition-colors duration-200"
+                aria-label="GitHub"
+              >
+                <Github size={20} />
+              </a>
+            </div>
+            
+            <p className="text-sm text-stone-400 text-center md:text-right">
+              Preserving history through artificial intelligence. <br />
+              © {new Date().getFullYear()} Mashujaa Voices.
+            </p>
           </div>
-          <p className="text-sm text-stone-400 text-center md:text-right">
-            Preserving history through artificial intelligence. <br />
-            © {new Date().getFullYear()} Mashujaa Voices.
-          </p>
         </div>
       </footer>
     </div>

@@ -161,8 +161,9 @@ class GenerateFullView(APIView):
                 user_id='anonymous',
             )
             
-            # Generate proxy URLs for response
-            proxy_urls = MediaService.get_proxy_urls(story.id)
+            # Convert S3 API URLs to public URLs
+            public_image_url = image_url.replace('/storage/v1/s3/', '/storage/v1/object/public/')
+            public_audio_url = audio_url.replace('/storage/v1/s3/', '/storage/v1/object/public/')
             
             response_data = {
                 'story_id': story.id,
@@ -172,8 +173,8 @@ class GenerateFullView(APIView):
                     'year': story.year,
                     'region': story.region,
                 },
-                'image_url': proxy_urls['image_url'],
-                'audio_url': proxy_urls['audio_url'],
+                'image_url': public_image_url,
+                'audio_url': public_audio_url,
             }
             
             return Response(

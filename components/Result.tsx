@@ -43,7 +43,12 @@ const Result: React.FC<ResultProps> = ({ content, onBack }) => {
             <div className="absolute inset-0 bg-black/30 z-0"></div>
             <img 
               src={imageUrl} 
-              alt={story.title} 
+              alt={story.title}
+              onError={(e) => {
+                console.error('Image failed to load:', imageUrl);
+                e.currentTarget.style.display = 'none';
+              }}
+              onLoad={() => console.log('Image loaded successfully:', imageUrl)}
               className="relative z-10 max-h-[500px] w-auto max-w-full rounded-lg shadow-2xl border-4 border-white/10" 
             />
           </div>
