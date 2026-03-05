@@ -17,6 +17,7 @@ const Gallery: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const observerTarget = useRef<HTMLDivElement>(null);
+  const currentlyPlayingAudio = useRef<HTMLAudioElement | null>(null);
 
   const loadStories = useCallback(async (page: number) => {
     try {
@@ -161,7 +162,16 @@ const Gallery: React.FC = () => {
                         onClick={e => {
                           e.stopPropagation();
                           const audio = (e.currentTarget.parentElement?.querySelector('audio') as HTMLAudioElement);
-                          if (audio) audio.play();
+                          if (audio) {
+                            // Pause currently playing audio if exists
+                            if (currentlyPlayingAudio.current && currentlyPlayingAudio.current !== audio) {
+                              currentlyPlayingAudio.current.pause();
+                              currentlyPlayingAudio.current.currentTime = 0;
+                            }
+                            // Play the new audio
+                            audio.play();
+                            currentlyPlayingAudio.current = audio;
+                          }
                         }}
                       >
                         <Play size={32} fill="currentColor" className="ml-1" />
