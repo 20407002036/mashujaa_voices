@@ -30,7 +30,7 @@ cp .env.example .env
 
 Required keys:
 - `GEMINI_API_KEY` - Google Gemini API key (for vision)
-- `GROQ_API_KEY` - Groq API key (for TTS)
+- `GROQ_API_KEY` - Groq API key (for TTS and vision fallback)
 
 ### 3. Run Migrations
 
@@ -73,7 +73,10 @@ The API will be available at `http://localhost:8000/api/`
 
 | Provider | Model | Description |
 |----------|-------|-------------|
-| `gemini` | gemini-2.5-flash | Google Gemini vision model |
+| `gemini` | gemini-2.5-flash | Google Gemini vision model (primary) |
+| `groq` | llama-3.2-90b-vision-preview | Llama Vision via Groq (fallback) |
+
+**Automatic Fallback:** When Gemini hits rate limits or quota errors, the system automatically falls back to Groq's Llama Vision. This provides uninterrupted service during high-traffic periods.
 
 ### TTS Providers
 
@@ -165,6 +168,24 @@ python manage.py createsuperuser
 ### Access Admin
 
 Visit `http://localhost:8000/admin/` to manage stories.
+
+## Troubleshooting
+
+### Rate Limit Errors
+
+If you're experiencing rate limit errors with Gemini:
+- The system automatically falls back to Groq's Llama Vision when Gemini hits rate limits
+- Check backend logs for fallback activity: `python manage.py runserver` will show warnings when fallback is triggered
+- Ensure your `GROQ_API_KEY` is valid for both providers to work
+- If both providers fail, you'll receive an error message indicating the issue
+
+### Both Providers Failing
+
+If both Gemini and Groq vision providers fail:
+1. Verify both API keys are valid: `GEMINI_API_KEY` and `GROQ_API_KEY`
+2. Check your API quotas on both platforms
+3. Review the error logs for specific failure reasons
+4. You can manually set `VISION_PROVIDER=groq` in `.env` to use Groq as the primary provider
 
 ## License
 

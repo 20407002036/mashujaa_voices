@@ -6,6 +6,7 @@ django-environ>=0.11
 
 # AI Providers
 google-genai>=0.3
+groq>=0.4
 httpx>=0.25
 
 # Storage

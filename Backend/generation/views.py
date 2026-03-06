@@ -15,6 +15,8 @@ from providers.registry import (
     get_tts_provider,
     list_vision_providers,
     list_tts_providers,
+    analyze_image_with_fallback,
+    validate_image_with_fallback,
 )
 from .serializers import (
     GenerateStoryRequestSerializer,
@@ -54,9 +56,8 @@ class GenerateStoryView(APIView):
         provider_name = serializer.validated_data.get('vision_provider')
         
         try:
-            # Get vision provider and analyze image
-            provider = get_vision_provider(provider_name)
-            story_data = run_async(provider.analyze_image(image_bytes, context))
+            # Analyze image with automatic fallback
+            story_data = run_async(analyze_image_with_fallback(image_bytes, context, provider_name))
             
             response_data = {
                 'title': story_data.title,
@@ -130,25 +131,67 @@ class GenerateFullView(APIView):
         tts_provider_name = serializer.validated_data.get('tts_provider')
         user_consented = serializer.validated_data.get('user_consented', False)
         is_public = serializer.validated_data.get('is_public', False)
+        force_generate = serializer.validated_data.get('force_generate', False)
         
         try:
             print("Starting full generation pipeline...")
-            # Step 1: Analyze image and generate story
-            vision_provider = get_vision_provider(vision_provider_name)
-            story_data = run_async(vision_provider.analyze_image(image_bytes, context))
-            print(f"Generated story: {story_data.title}")
+            
+            # Step 0: Validate if image is historic (unless forced)
+            # Uses automatic fallback if primary provider hits rate limit
+            requires_approval = False
+            try:
+                print(f"Step 0: Validating image is historic using {vision_provider_name or 'default'} provider...")
+                validation_result = run_async(
+                    validate_image_with_fallback(image_bytes, context, vision_provider_name)
+                )
+                
+                print(f"✓ Validation complete: {validation_result}")
+                
+                # If not historic and not forced, return validation warning
+                # Only check is_historic flag - confidence interpretation varies across AI models
+                if not validation_result['is_historic']:
+                    if not force_generate:
+                        print(f"✗ Image rejected: Not historic (reason: {validation_result.get('reason', 'unknown')})")
+                        return Response(
+                            {
+                                'error': 'Image does not appear to be a historical photograph',
+                                'error_type': 'validation_warning',
+                                'validation_details': validation_result
+                            },
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    else:
+                        # User forced generation, mark for moderator approval
+                        print("⚠ User forced generation of non-historic photo - requires approval")
+                        requires_approval = True
+                else:
+                    # Image passed validation
+                    print(f"✓ Image validated as historic (era: {validation_result.get('era', 'unknown')})")
+                    requires_approval = False
+            except Exception as validation_error:
+                # If validation fails even with fallback, log and require approval
+                print(f"✗ Validation failed (including fallback): {validation_error}")
+                requires_approval = True  # Require approval since we couldn't validate
+            
+            # Step 1: Analyze image and generate story (with automatic fallback)
+            print("Step 1: Analyzing image and generating story...")
+            story_data = run_async(analyze_image_with_fallback(image_bytes, context, vision_provider_name))
+            print(f"✓ Story generated: '{story_data.title}'")
             
             # Step 2: Generate audio narration
+            print("Step 2: Generating audio narration...")
             tts_provider = get_tts_provider(tts_provider_name)
             audio_data = run_async(tts_provider.generate_audio(story_data.content, voice))
-            print("Generated audio narration.")
+            print("✓ Audio narration generated")
             
             # Step 3: Upload media files
+            print("Step 3: Uploading media files to storage...")
             image_url = MediaService.upload_image(image_bytes)
             audio_url = MediaService.upload_audio(audio_data.audio_bytes)
-            print(f"Uploaded media. Image URL: {image_url}, Audio URL: {audio_url}")
+            print(f"✓ Media uploaded - Image: {image_url[:60]}..., Audio: {audio_url[:60]}...")
             
             # Step 4: Save story to database (only if consented)
+            print(f"Step 4: Saving story to database (requires_approval={requires_approval})...")
             story = Story.objects.create(
                 title=story_data.title,
                 content=story_data.content,
@@ -158,8 +201,10 @@ class GenerateFullView(APIView):
                 audio_url=audio_url,
                 user_consented=user_consented,
                 is_public=is_public,
+                requires_approval=requires_approval,
                 user_id='anonymous',
             )
+            print(f"✓ Story saved to database (ID: {story.id})")
             
             # Convert S3 API URLs to public URLs
             public_image_url = image_url.replace('/storage/v1/s3/', '/storage/v1/object/public/')
@@ -175,7 +220,13 @@ class GenerateFullView(APIView):
                 },
                 'image_url': public_image_url,
                 'audio_url': public_audio_url,
+                'requires_approval': requires_approval,
             }
+            
+            print("=" * 60)
+            print(f"✓ PIPELINE COMPLETE - Story '{story.title}' successfully created!")
+            print(f"  Requires approval: {requires_approval}")
+            print("=" * 60)
             
             return Response(
                 GenerateFullResponseSerializer(response_data).data,
@@ -183,7 +234,9 @@ class GenerateFullView(APIView):
             )
             
         except Exception as e:
-            print(f"Error in full generation pipeline: {e}")
+            print("=" * 60)
+            print(f"✗ PIPELINE FAILED: {e}")
+            print("=" * 60)
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

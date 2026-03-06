@@ -32,3 +32,23 @@ export interface GalleryItem {
   category: string;
   year: string;
 }
+
+export interface ValidationDetails {
+  is_historic: boolean;
+  confidence: number;
+  reason: string;
+  era: string | null;
+  issues: string[];
+}
+
+export class ValidationError extends Error {
+  validationDetails: ValidationDetails;
+  errorType: string;
+  
+  constructor(message: string, validationDetails: ValidationDetails, errorType: string) {
+    super(message);
+    this.validationDetails = validationDetails;
+    this.errorType = errorType;
+    this.name = 'ValidationError';
+  }
+}

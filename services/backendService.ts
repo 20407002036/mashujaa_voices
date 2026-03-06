@@ -11,6 +11,7 @@ interface GenerateFullRequest {
   user_consented: boolean;
   is_public: boolean;
   user_id?: string;
+  force_generate?: boolean;
 }
 
 interface StoryData {
@@ -25,6 +26,7 @@ interface GenerateFullResponse {
   audio_url: string;
   story_id: number;
   image_url: string;
+  requires_approval?: boolean;
 }
 
 interface GalleryStory {
@@ -50,6 +52,9 @@ export async function generateFullStory(request: GenerateFullRequest): Promise<G
   formData.append('user_consented', request.user_consented.toString());
   formData.append('is_public', request.is_public.toString());
   formData.append('user_id', request.user_id || 'anonymous');
+  if (request.force_generate) {
+    formData.append('force_generate', 'true');
+  }
 
   const response = await fetch(`${API_BASE_URL}/api/generate/full/`, {
     method: 'POST',
@@ -58,6 +63,16 @@ export async function generateFullStory(request: GenerateFullRequest): Promise<G
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
+    
+    // Check if it's a validation warning
+    if (errorData.error_type === 'validation_warning' && errorData.validation_details) {
+      // Import ValidationError dynamically to avoid circular dependencies
+      const error = new Error(errorData.error) as any;
+      error.validationDetails = errorData.validation_details;
+      error.errorType = 'validation_warning';
+      throw error;
+    }
+    
     throw new Error(errorData.error || `Backend error: ${response.status}`);
   }
 
