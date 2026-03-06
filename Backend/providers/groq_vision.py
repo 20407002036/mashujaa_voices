@@ -1,45 +1,42 @@
 """
-Google Gemini AI providers for vision and TTS.
+Groq Vision provider using Llama 4 Scout.
 """
 
+import base64
 import json
 import re
-import struct
 from typing import Optional
 
+from groq import AsyncGroq
 from django.conf import settings
-from google import genai
-from google.genai import types
 
-from .base import VisionProvider, TTSProvider, StoryData, AudioData
+from .base import VisionProvider, StoryData
 
 
-class GeminiVisionProvider(VisionProvider):
-    """Vision provider using Google Gemini with task-optimized models."""
+class GroqVisionProvider(VisionProvider):
+    """Vision provider using Groq's Llama Vision models with task-optimized selection."""
     
     def __init__(self):
-        self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        # Use lighter model for fast validation
-        self.validation_model = 'gemini-2.0-flash-lite'
-        # Use full model for quality story generation
-        self.analysis_model = 'gemini-2.5-flash'
+        self.client = AsyncGroq(api_key=settings.GROQ_API_KEY)
+        # Use Llama 4 Scout for both validation and story generation
+        self.validation_model = 'meta-llama/llama-4-scout-17b-16e-instruct'
+        self.analysis_model = 'meta-llama/llama-4-scout-17b-16e-instruct'
     
     @property
     def name(self) -> str:
-        return 'gemini'
+        return 'groq'
     
     async def analyze_image(
         self, 
         image_data: bytes, 
         context: Optional[str] = None
     ) -> StoryData:
-        """Analyze image using Gemini vision model."""
-        import base64
+        """Analyze image using Groq's Llama Vision model."""
         
         # Encode image to base64
         image_base64 = base64.b64encode(image_data).decode('utf-8')
         
-        # Build prompt
+        # Build prompt (same as Gemini for consistency)
         context_text = f"\n\nUser context: {context}" if context else ""
         
         prompt = f"""You are a Kenyan historian and storyteller specializing in the rich tapestry of Kenya's past. 
@@ -59,26 +56,32 @@ Focus on themes of independence, cultural heritage, community, and progress.{con
 
 IMPORTANT: Return ONLY the JSON object, no markdown formatting."""
 
-        # Create content parts
-        contents = [
-            types.Part.from_bytes(
-                data=image_data,
-                mime_type='image/jpeg'
-            ),
-            types.Part.from_text(text=prompt)
-        ]
-        
-        response = await self.client.aio.models.generate_content(
+        # Create chat completion with vision
+        response = await self.client.chat.completions.create(
             model=self.analysis_model,
-            contents=contents,
-            config=types.GenerateContentConfig(
-                response_mime_type='application/json',
-                max_output_tokens=1000
-            )
+            messages=[
+                {
+                    'role': 'user',
+                    'content': [
+                        {
+                            'type': 'text',
+                            'text': prompt
+                        },
+                        {
+                            'type': 'image_url',
+                            'image_url': {
+                                'url': f'data:image/jpeg;base64,{image_base64}'
+                            }
+                        }
+                    ]
+                }
+            ],
+            temperature=0.7,
+            max_tokens=1000,
         )
         
-        # Parse JSON response
-        text = response.text.strip()
+        text = response.choices[0].message.content.strip()
+        
         # Remove markdown code blocks if present
         if text.startswith('```'):
             text = re.sub(r'^```(?:json)?\n?', '', text)
@@ -109,6 +112,9 @@ IMPORTANT: Return ONLY the JSON object, no markdown formatting."""
                 - era: str|None (estimated time period if historic)
                 - issues: list[str] (specific problems found if not historic)
         """
+        # Encode image to base64
+        image_base64 = base64.b64encode(image_data).decode('utf-8')
+        
         context_text = f"\n\nUser-provided context: {context}" if context else ""
         
         prompt = f"""Analyze this image and determine if it is a historical photograph suitable for archival storytelling about Kenya's history.
@@ -141,26 +147,32 @@ Your response MUST be a valid JSON object with these exact fields:
 
 IMPORTANT: Be strict in validation. If you have any doubt about whether it's truly historical, mark is_historic as false. Return ONLY the JSON object."""
 
-        # Create content parts
-        contents = [
-            types.Part.from_bytes(
-                data=image_data,
-                mime_type='image/jpeg'
-            ),
-            types.Part.from_text(text=prompt)
-        ]
-        
-        response = await self.client.aio.models.generate_content(
+        # Create chat completion with vision - use faster model for validation
+        response = await self.client.chat.completions.create(
             model=self.validation_model,
-            contents=contents,
-            config=types.GenerateContentConfig(
-                response_mime_type='application/json',
-                max_output_tokens=300
-            )
+            messages=[
+                {
+                    'role': 'user',
+                    'content': [
+                        {
+                            'type': 'text',
+                            'text': prompt
+                        },
+                        {
+                            'type': 'image_url',
+                            'image_url': {
+                                'url': f'data:image/jpeg;base64,{image_base64}'
+                            }
+                        }
+                    ]
+                }
+            ],
+            temperature=0.5,
+            max_tokens=300,
         )
         
-        # Parse JSON response
-        text = response.text.strip()
+        text = response.choices[0].message.content.strip()
+        
         # Remove markdown code blocks if present
         if text.startswith('```'):
             text = re.sub(r'^```(?:json)?\n?', '', text)
@@ -175,72 +187,3 @@ IMPORTANT: Be strict in validation. If you have any doubt about whether it's tru
             'era': data.get('era'),
             'issues': data.get('issues', [])
         }
-
-
-class GeminiTTSProvider(TTSProvider):
-    """TTS provider using Google Gemini."""
-    
-    def __init__(self):
-        self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        self.model = 'gemini-2.5-flash-preview-tts'
-        self.sample_rate = 24000
-    
-    @property
-    def name(self) -> str:
-        return 'gemini-tts'
-    
-    @property
-    def available_voices(self) -> list[str]:
-        return ['Kore', 'Puck', 'Charon', 'Fenrir', 'Aoede']
-    
-    async def generate_audio(
-        self, 
-        text: str, 
-        voice: Optional[str] = None
-    ) -> AudioData:
-        """Generate audio using Gemini TTS model."""
-        voice = voice or 'Kore'
-        
-        # Clean text of markdown
-        clean_text = re.sub(r'[*_#`]', '', text)
-        
-        response = await self.client.aio.models.generate_content(
-            model=self.model,
-            contents=clean_text,
-            config=types.GenerateContentConfig(
-                response_modalities=['AUDIO'],
-                speech_config=types.SpeechConfig(
-                    voice_config=types.VoiceConfig(
-                        prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                            voice_name=voice
-                        )
-                    )
-                )
-            )
-        )
-        
-        # Extract PCM data and convert to WAV
-        pcm_data = response.candidates[0].content.parts[0].inline_data.data
-        wav_bytes = self._pcm_to_wav(pcm_data)
-        
-        return AudioData(
-            audio_bytes=wav_bytes,
-            format='wav',
-            sample_rate=self.sample_rate
-        )
-    
-    def _pcm_to_wav(self, pcm_data: bytes) -> bytes:
-        """Convert raw PCM data to WAV format."""
-        import io
-        import wave
-        
-        # PCM is 16-bit little-endian mono at 24kHz
-        wav_buffer = io.BytesIO()
-        
-        with wave.open(wav_buffer, 'wb') as wav_file:
-            wav_file.setnchannels(1)
-            wav_file.setsampwidth(2)  # 16-bit = 2 bytes
-            wav_file.setframerate(self.sample_rate)
-            wav_file.writeframes(pcm_data)
-        
-        return wav_buffer.getvalue()

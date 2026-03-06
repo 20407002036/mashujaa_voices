@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { Upload as UploadIcon, X, FileImage, Loader2, Sparkles } from 'lucide-react';
+import { Upload as UploadIcon, X, FileImage, Loader2, Sparkles, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-import { GeneratedContent, AppStatus } from '../types';
+import { GeneratedContent, AppStatus, ValidationDetails } from '../types';
 import Result from './Result';
 import { generateFullStory } from '../services/backendService';
 
@@ -15,6 +15,8 @@ const Upload: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [userConsented, setUserConsented] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
+  const [validationWarning, setValidationWarning] = useState<ValidationDetails | null>(null);
+  const [requiresApproval, setRequiresApproval] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,7 +57,7 @@ const Upload: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (forceGenerate: boolean = false) => {
     if (!imagePreview || !file) return;
     if (!userConsented) {
       setErrorMsg('You must consent to save your story.');
@@ -63,6 +65,8 @@ const Upload: React.FC = () => {
     }
     try {
       setStatus(AppStatus.ANALYZING);
+      setErrorMsg(null);
+      setValidationWarning(null);
       
       // Call backend API to generate full story with audio
       const response = await generateFullStory({
@@ -71,6 +75,7 @@ const Upload: React.FC = () => {
         user_consented: userConsented,
         is_public: isPublic,
         user_id: 'anonymous',
+        force_generate: forceGenerate,
       });
 
       // Backend returns the story data, audio URL, and image URL
@@ -80,6 +85,11 @@ const Upload: React.FC = () => {
       console.log('Backend response:', response);
       console.log('Image URL:', response.image_url);
       console.log('Audio URL:', response.audio_url);
+      
+      // Check if story requires approval
+      if (response.requires_approval) {
+        setRequiresApproval(true);
+      }
       
       // Validate response before setting state
       if (!response.story || !response.story.title || !response.story.content) {
@@ -100,9 +110,25 @@ const Upload: React.FC = () => {
       setStatus(AppStatus.COMPLETE);
     } catch (err: any) {
       console.error(err);
-      setStatus(AppStatus.ERROR);
-      setErrorMsg(err.message || "Something went wrong. Please try again.");
+      setStatus(AppStatus.IDLE);
+      
+      // Check if it's a validation warning
+      if (err.errorType === 'validation_warning' && err.validationDetails) {
+        setValidationWarning(err.validationDetails);
+      } else {
+        setErrorMsg(err.message || "Something went wrong. Please try again.");
+      }
     }
+  };
+  
+  const handleForceGenerate = () => {
+    setValidationWarning(null);
+    handleGenerate(true);
+  };
+  
+  const handleCancelValidation = () => {
+    setValidationWarning(null);
+    setStatus(AppStatus.IDLE);
   };
 
   const handleReset = () => {
@@ -113,11 +139,93 @@ const Upload: React.FC = () => {
   };
 
   if (result) {
-    return <Result content={result} onBack={handleReset} />;
+    return (
+      <>
+        <Result content={result} onBack={handleReset} />
+        {requiresApproval && (
+          <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-amber-100 text-amber-900 px-6 py-4 rounded-lg shadow-xl border border-amber-300 max-w-md text-center">
+            <AlertTriangle className="inline-block mr-2" size={20} />
+            <span className="font-medium">Your story is pending moderator approval before appearing in the gallery.</span>
+          </div>
+        )}
+      </>
+    );
   }
 
   return (
     <div className="min-h-[calc(100vh-80px)] py-12 px-4 sm:px-6 lg:px-8 bg-stone-50">
+      {/* Validation Warning Modal */}
+      <AnimatePresence>
+        {validationWarning && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            onClick={handleCancelValidation}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start gap-4 mb-6">
+                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="text-amber-600" size={24} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-heritage-green mb-2">
+                    This doesn't appear to be a historical photo
+                  </h3>
+                  <p className="text-stone-600 text-sm mb-4">
+                    {validationWarning.reason}
+                  </p>
+                  {validationWarning.issues && validationWarning.issues.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                      <p className="text-xs font-semibold text-amber-900 mb-2">Issues detected:</p>
+                      <ul className="text-xs text-amber-800 space-y-1">
+                        {validationWarning.issues.map((issue, idx) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <span className="text-amber-600">•</span>
+                            <span>{issue}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <p className="text-xs text-stone-500 italic">
+                    Confidence: {Math.round(validationWarning.confidence * 100)}%
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-blue-900">
+                  <strong>You can still proceed,</strong> but your submission will require moderator approval before appearing in the public gallery.
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCancelValidation}
+                  className="flex-1 px-4 py-3 rounded-lg border-2 border-stone-300 text-stone-700 font-medium hover:bg-stone-50 transition-colors"
+                >
+                  Go Back
+                </button>
+                <button
+                  onClick={handleForceGenerate}
+                  className="flex-1 px-4 py-3 rounded-lg bg-papaya text-white font-medium hover:bg-papaya-600 transition-colors shadow-md"
+                >
+                  Upload Anyway
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -215,7 +323,7 @@ const Upload: React.FC = () => {
               {/* Action Buttons */}
               <div className="mt-8 flex justify-end">
                 <button
-                  onClick={handleGenerate}
+                  onClick={() => handleGenerate(false)}
                   disabled={!imagePreview || !userConsented}
                   className={`flex items-center gap-2 px-8 py-4 rounded-full text-lg font-semibold shadow-lg transition-all ${
                     imagePreview && userConsented

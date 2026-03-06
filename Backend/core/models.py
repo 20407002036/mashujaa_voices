@@ -19,6 +19,10 @@ class Story(models.Model):
     audio_url = models.URLField(max_length=500, blank=True, null=True)
     user_consented = models.BooleanField(default=False)
     is_public = models.BooleanField(default=False)
+    requires_approval = models.BooleanField(
+        default=False,
+        help_text='Story requires moderator approval before appearing in public gallery'
+    )
     user_id = models.CharField(max_length=100, default='anonymous')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -28,7 +32,7 @@ class Story(models.Model):
         verbose_name = 'Story'
         verbose_name_plural = 'Stories'
         indexes = [
-            models.Index(fields=['is_public', 'user_consented', '-created_at'], name='gallery_idx'),
+            models.Index(fields=['is_public', 'user_consented', 'requires_approval', '-created_at'], name='gallery_idx'),
             models.Index(fields=['-created_at'], name='created_at_idx'),
         ]
 

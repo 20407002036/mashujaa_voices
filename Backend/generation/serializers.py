@@ -77,6 +77,11 @@ class GenerateFullRequestSerializer(serializers.Serializer):
         default=False,
         help_text='Make story visible in public gallery'
     )
+    force_generate = serializers.BooleanField(
+        default=False,
+        required=False,
+        help_text='Force generation even if validation fails (requires moderator approval)'
+    )
 
 
 class GenerateFullResponseSerializer(serializers.Serializer):

@@ -50,9 +50,11 @@ class GalleryView(generics.ListAPIView):
 
     def get_queryset(self):
         # Optimized query with proper indexing
+        # Only show approved stories in public gallery
         queryset = Story.objects.filter(
             user_consented=True,
-            is_public=True
+            is_public=True,
+            requires_approval=False
         ).order_by('-created_at')
         
         logger.info(f"GalleryView: Returning {queryset.count()} public stories")
