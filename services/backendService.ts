@@ -121,6 +121,24 @@ export async function fetchStory(id: string): Promise<GalleryStory> {
 }
 
 /**
+ * Fetch a single public (consented) story by ID for share links.
+ * Returns null if the story is not found or not publicly accessible.
+ */
+export async function fetchPublicStory(id: string): Promise<GalleryStory | null> {
+  const response = await fetch(`${API_BASE_URL}/api/stories/${id}/`);
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch story: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+/**
  * Delete a story by ID
  */
 export async function deleteStory(id: string): Promise<void> {

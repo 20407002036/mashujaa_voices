@@ -13,6 +13,7 @@ const Gallery: React.FC = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedStory, setSelectedStory] = useState<GeneratedContent | null>(null);
+  const [selectedStoryId, setSelectedStoryId] = useState<string | undefined>(undefined);
   const [loadingStory, setLoadingStory] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -98,6 +99,7 @@ const Gallery: React.FC = () => {
         },
         imageUrl: fullStory.image_url,
       });
+      setSelectedStoryId(storyId);
       console.log('Selected story set, rendering Result component');
       setLoadingStory(false);
     } catch (err) {
@@ -108,11 +110,12 @@ const Gallery: React.FC = () => {
 
   const handleBackToGallery = () => {
     setSelectedStory(null);
+    setSelectedStoryId(undefined);
   };
 
   // If a story is selected, show Result component
   if (selectedStory) {
-    return <Result content={selectedStory} onBack={handleBackToGallery} />;
+    return <Result content={selectedStory} storyId={selectedStoryId} onBack={handleBackToGallery} />;
   }
 
   return (
