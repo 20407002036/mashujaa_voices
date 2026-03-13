@@ -13,6 +13,7 @@ const Upload: React.FC = () => {
   const [status, setStatus] = useState<AppStatus>(AppStatus.IDLE);
   const [result, setResult] = useState<GeneratedContent | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [storyId, setStoryId] = useState<string | undefined>(undefined);
   const [userConsented, setUserConsented] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
   const [validationWarning, setValidationWarning] = useState<ValidationDetails | null>(null);
@@ -105,6 +106,7 @@ const Upload: React.FC = () => {
         },
         imageUrl: response.image_url,
       });
+      setStoryId(response.story_id ? String(response.story_id) : undefined);
       
       console.log('Set result with imageUrl:', response.image_url);
       setStatus(AppStatus.COMPLETE);
@@ -133,6 +135,7 @@ const Upload: React.FC = () => {
 
   const handleReset = () => {
     setResult(null);
+    setStoryId(undefined);
     setStatus(AppStatus.IDLE);
     setContext('');
     clearImage();
@@ -141,7 +144,7 @@ const Upload: React.FC = () => {
   if (result) {
     return (
       <>
-        <Result content={result} onBack={handleReset} />
+        <Result content={result} storyId={storyId} onBack={handleReset} />
         {requiresApproval && (
           <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-amber-100 text-amber-900 px-6 py-4 rounded-lg shadow-xl border border-amber-300 max-w-md text-center">
             <AlertTriangle className="inline-block mr-2" size={20} />

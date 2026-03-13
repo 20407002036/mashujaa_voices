@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { GeneratedContent } from '../types';
 import AudioPlayer from './AudioPlayer';
 import { RotateCcw, Share2, Quote } from 'lucide-react';
@@ -7,10 +7,29 @@ import { motion } from 'framer-motion';
 interface ResultProps {
   content: GeneratedContent;
   onBack: () => void;
+  storyId?: string;
+  viewOnly?: boolean;
 }
 
-const Result: React.FC<ResultProps> = ({ content, onBack }) => {
+const Result: React.FC<ResultProps> = ({ content, onBack, storyId, viewOnly }) => {
   const { story, audio, imageUrl } = content;
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = () => {
+    const shareUrl = `${window.location.origin}/#/story/${storyId}`;
+    if (navigator.share) {
+      navigator.share({
+        title: story.title,
+        text: story.content.slice(0, 150),
+        url: shareUrl,
+      }).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }).catch(console.error);
+    }
+  };
 
   // Safety check: ensure story data exists
   if (!story || !story.title) {
@@ -84,29 +103,24 @@ const Result: React.FC<ResultProps> = ({ content, onBack }) => {
 
              {/* Actions */}
              <div className="mt-auto pt-6 border-t border-stone-200 flex flex-wrap gap-4">
-               <button 
-                 onClick={onBack}
-                 className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-stone-300 text-stone-600 hover:bg-stone-100 hover:text-heritage-green transition-colors font-medium"
-               >
-                 <RotateCcw size={18} />
-                 <span>Narrate Another</span>
-               </button>
-               <button 
-                 onClick={() => {
-                   if (navigator.share) {
-                     navigator.share({
-                       title: story.title,
-                       text: story.content,
-                     }).catch(console.error);
-                   } else {
-                     alert("Sharing is not supported on this browser.");
-                   }
-                 }}
-                 className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-heritage-green text-white hover:bg-green-800 transition-colors font-medium shadow-md ml-auto"
-               >
-                 <Share2 size={18} />
-                 <span>Share Story</span>
-               </button>
+               {!viewOnly && (
+                 <button
+                   onClick={onBack}
+                   className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-stone-300 text-stone-600 hover:bg-stone-100 hover:text-heritage-green transition-colors font-medium"
+                 >
+                   <RotateCcw size={18} />
+                   <span>Narrate Another</span>
+                 </button>
+               )}
+               {storyId && (
+                 <button
+                   onClick={handleShare}
+                   className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-heritage-green text-white hover:bg-green-800 transition-colors font-medium shadow-md ml-auto"
+                 >
+                   <Share2 size={18} />
+                   <span>{copied ? 'Link Copied!' : 'Share Story'}</span>
+                 </button>
+               )}
              </div>
           </div>
         </div>

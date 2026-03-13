@@ -14,6 +14,28 @@ from google.genai import types
 from .base import VisionProvider, TTSProvider, StoryData, AudioData
 
 
+def _attempt_json_repair(text: str) -> str:
+    """
+    Attempt to repair common JSON formatting issues.
+    
+    Args:
+        text: Potentially malformed JSON text
+        
+    Returns:
+        Repaired JSON text
+    """
+    # Remove any trailing commas before closing braces/brackets
+    text = re.sub(r',(\s*[}\]])', r'\1', text)
+    
+    # Fix common newline issues in strings (replace literal \n with escaped \\n)
+    # This is tricky - we need to be careful not to break valid escapes
+    
+    # Remove any BOM or invisible characters
+    text = text.encode('utf-8').decode('utf-8-sig')
+    
+    return text
+
+
 class GeminiVisionProvider(VisionProvider):
     """Vision provider using Google Gemini with task-optimized models."""
     
@@ -45,19 +67,21 @@ class GeminiVisionProvider(VisionProvider):
         prompt = f"""You are a Kenyan historian and storyteller specializing in the rich tapestry of Kenya's past. 
 Analyze this historical image and create a compelling narrative about it.
 
-Your response MUST be a valid JSON object with these fields:
-- "title": A captivating title for this moment in history (max 100 chars)
-- "content": A documentary-style narrative (150-200 words) that:
-  * Describes what's happening in the image
-  * Places it in historical context
-  * Evokes pride and nostalgia for Kenya's heritage
-  * Uses vivid, evocative language
-- "year": Your best estimate of when this was taken (e.g., "1963", "Early 1950s", "1920s")
-- "region": The likely region in Kenya (e.g., "Nairobi", "Mombasa", "Central Kenya")
+You MUST respond with ONLY a valid JSON object in this EXACT format:
+{{
+  "title": "A captivating title for this moment in history (max 100 chars)",
+  "content": "A documentary-style narrative (150-200 words) that describes what's happening, places it in historical context, evokes pride and nostalgia for Kenya's heritage, and uses vivid, evocative language",
+  "year": "Your best estimate (e.g., 1963, Early 1950s, 1920s)",
+  "region": "The likely region in Kenya (e.g., Nairobi, Mombasa, Central Kenya)"
+}}
 
 Focus on themes of independence, cultural heritage, community, and progress.{context_text}
 
-IMPORTANT: Return ONLY the JSON object, no markdown formatting."""
+CRITICAL INSTRUCTIONS:
+- Return ONLY the JSON object - nothing before it, nothing after it
+- Do NOT wrap it in markdown code blocks (no ```json or ```)
+- Do NOT include any explanatory text
+- The response must start with {{ and end with }}"""
 
         # Create content parts
         contents = [
@@ -73,18 +97,54 @@ IMPORTANT: Return ONLY the JSON object, no markdown formatting."""
             contents=contents,
             config=types.GenerateContentConfig(
                 response_mime_type='application/json',
-                max_output_tokens=1000
+                max_output_tokens=1000,
+                temperature=0.3  # Lower temperature for more consistent output
             )
         )
         
         # Parse JSON response
         text = response.text.strip()
-        # Remove markdown code blocks if present
-        if text.startswith('```'):
-            text = re.sub(r'^```(?:json)?\n?', '', text)
-            text = re.sub(r'\n?```$', '', text)
         
-        data = json.loads(text)
+        # Remove markdown code blocks if present (handle various formats)
+        if '```' in text:
+            # Remove opening code fence
+            text = re.sub(r'^```(?:json)?\s*\n?', '', text, flags=re.MULTILINE)
+            # Remove closing code fence
+            text = re.sub(r'\n?```\s*$', '', text, flags=re.MULTILINE)
+        
+        # Remove any leading/trailing whitespace or text outside JSON
+        # Try to extract JSON object if there's extra text
+        if not text.startswith('{'):
+            # Find the first { and take everything from there
+            start_idx = text.find('{')
+            if start_idx != -1:
+                text = text[start_idx:]
+        
+        # Remove any trailing text after the last }
+        if text.endswith('}'):
+            pass  # Already good
+        else:
+            last_brace = text.rfind('}')
+            if last_brace != -1:
+                text = text[:last_brace + 1]
+        
+        text = text.strip()
+        
+        print(f"[DEBUG] Gemini analyze_image response text:\n{text}")
+        
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as e:
+            # Try to repair common JSON issues
+            print(f"[WARNING] Initial JSON parse failed, attempting repair...")
+            repaired_text = _attempt_json_repair(text)
+            try:
+                data = json.loads(repaired_text)
+                print(f"[SUCCESS] JSON repair successful!")
+            except json.JSONDecodeError as e2:
+                print(f"[ERROR] Failed to parse JSON from Gemini even after repair: {e2}")
+                print(f"[ERROR] Problematic text (first 500 chars): {text[:500]}")
+                raise Exception(f"Invalid JSON response from Gemini: {str(e2)}")
         
         return StoryData(
             title=data.get('title', 'Untitled Story'),

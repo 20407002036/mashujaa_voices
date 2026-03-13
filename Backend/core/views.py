@@ -37,8 +37,11 @@ class StoryDetailView(generics.RetrieveDestroyAPIView):
     GET: Retrieve a single story.
     DELETE: Delete a story.
     """
-    queryset = Story.objects.all()
     serializer_class = StorySerializer
+
+    def get_queryset(self):
+        # Only expose consented stories publicly; used for share links
+        return Story.objects.filter(user_consented=True)
 
 
 class GalleryView(generics.ListAPIView):
