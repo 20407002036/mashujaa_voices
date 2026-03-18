@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Upload, ChevronRight, PlayCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { wakeUpTtsProvider } from '../services/backendService';
 
 const images = [
   "https://images.unsplash.com/photo-1533645782036-997947a9d529?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
@@ -22,6 +23,12 @@ const Home: React.FC = () => {
       setCurrentImage((prev) => (prev + 1) % images.length);
     }, 6000);
     return () => clearInterval(timer);
+  }, []);
+
+  
+
+  useEffect(() => {
+    wakeUpTtsProvider();
   }, []);
 
   return (

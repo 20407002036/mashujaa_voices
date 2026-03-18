@@ -169,6 +169,8 @@ SUPABASE_S3_SECRET_KEY = env('SUPABASE_S3_SECRET_KEY', default='')
 SUPABASE_BUCKET_IMAGES = env('SUPABASE_BUCKET_IMAGES', default='mashujaa-images')
 SUPABASE_BUCKET_AUDIO = env('SUPABASE_BUCKET_AUDIO', default='mashujaa-audio')
 
+EDGE_TTS_URL = env('EDGE_TTS_URL', default='https://openai-edge-tts-lf7c.onrender.com')
+
 # Configure django-storages for Supabase S3 if credentials are provided
 if SUPABASE_S3_ACCESS_KEY and SUPABASE_S3_SECRET_KEY:
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
