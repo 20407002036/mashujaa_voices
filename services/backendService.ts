@@ -79,6 +79,13 @@ export async function generateFullStory(request: GenerateFullRequest): Promise<G
   return await response.json();
 }
 
+export async function wakeUpTtsProvider():Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/wake_tts/`, {
+      method: 'POST',
+    });
+}
+
+
 /**
  * Fetch public stories for the gallery with pagination
  */

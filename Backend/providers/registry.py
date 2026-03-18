@@ -44,6 +44,10 @@ def _is_rate_limit_error(exception: Exception) -> bool:
     
     return False
 
+def is_gemini_json_error(e):
+    error ="Invalid JSON response from Gemini"
+    charCount=len(error)
+    return error == e[:charCount]
 
 # Registry of available providers
 VISION_PROVIDERS: dict[str, Type[VisionProvider]] = {
@@ -140,7 +144,7 @@ async def analyze_image_with_fallback(
     
     except Exception as e:
         # Check if this is a rate limit error
-        if _is_rate_limit_error(e):
+        if _is_rate_limit_error(e) or is_gemini_json_error(e):
             logger.warning(
                 f"Rate limit error with {primary_name} provider: {str(e)}. "
                 f"Falling back to Groq..."

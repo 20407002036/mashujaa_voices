@@ -14,7 +14,7 @@ class EdgeTTSProvider(TTSProvider):
     """TTS provider using custom Edge TTS API."""
     
     def __init__(self):
-        self.endpoint = 'https://openai-edge-tts-c4sl.onrender.com/v1/audio/speech'
+        self.endpoint = settings.EDGE_TTS_URL
         self.sample_rate = 24000
     
     @property

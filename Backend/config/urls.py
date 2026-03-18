@@ -8,6 +8,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+import requests
 
 
 @api_view(['GET'])
@@ -35,10 +36,21 @@ def health_check(request):
         'service': 'Mashujaa Voices API'
     })
 
+@api_view(['POST'])
+def wake_tts(request):
+    tts_url = settings.EDGE_TTS_URL
+
+    response = requests.get(f"{tts_url}/health")
+
+    print("*"*20)
+    print(response)
+    return Response()
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('health/', health_check, name='health-check'),
+    path('wake_tts/',wake_tts, name='wake-tts'),
     path('api/', api_root, name='api-root'),
     path('api/', include('core.urls')),
     path('api/generate/', include('generation.urls')),
