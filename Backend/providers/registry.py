@@ -45,9 +45,8 @@ def _is_rate_limit_error(exception: Exception) -> bool:
     return False
 
 def is_gemini_json_error(e):
-    error ="Invalid JSON response from Gemini"
-    charCount=len(error)
-    return error == e[:charCount]
+    error = "Invalid JSON response from Gemini"
+    return str(e).startswith(error)
 
 # Registry of available providers
 VISION_PROVIDERS: dict[str, Type[VisionProvider]] = {

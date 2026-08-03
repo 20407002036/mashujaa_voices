@@ -7,6 +7,7 @@ import boto3
 from botocore.exceptions import ClientError
 from django.conf import settings
 from rest_framework import generics, status
+from rest_framework.permissions import BasePermission, SAFE_METHODS
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.http import FileResponse, StreamingHttpResponse
@@ -14,6 +15,20 @@ from .models import Story
 from .serializers import StorySerializer, StoryCreateSerializer, GalleryItemSerializer
 
 logger = logging.getLogger(__name__)
+
+
+class ReadOnlyOrStaffWrite(BasePermission):
+    """
+    Allow read-only access to everyone, but restrict destructive/write
+    operations to staff users.
+
+    Prevents anonymous callers from deleting consented stories.
+    """
+
+    def has_permission(self, request, view):
+        if request.method in SAFE_METHODS:
+            return True
+        return bool(request.user and request.user.is_staff)
 
 
 class StoryListCreateView(generics.ListCreateAPIView):
@@ -35,9 +50,10 @@ class StoryListCreateView(generics.ListCreateAPIView):
 class StoryDetailView(generics.RetrieveDestroyAPIView):
     """
     GET: Retrieve a single story.
-    DELETE: Delete a story.
+    DELETE: Delete a story (staff only).
     """
     serializer_class = StorySerializer
+    permission_classes = [ReadOnlyOrStaffWrite]
 
     def get_queryset(self):
         # Only expose consented stories publicly; used for share links
@@ -49,7 +65,6 @@ class GalleryView(generics.ListAPIView):
     GET: List all public stories for the gallery with pagination.
     """
     serializer_class = GalleryItemSerializer
-    pagination_class = None  # Use default from settings
 
     def get_queryset(self):
         # Optimized query with proper indexing
