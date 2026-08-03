@@ -30,13 +30,12 @@ from .services import MediaService
 
 
 def run_async(coro):
-    """Helper to run async code in sync context."""
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop.run_until_complete(coro)
+    """Helper to run async code in sync context.
+
+    asyncio.run creates and closes a fresh event loop per call, avoiding the
+    event-loop leak that came from repeatedly reusing an unclosed loop.
+    """
+    return asyncio.run(coro)
 
 
 class GenerateStoryView(APIView):
@@ -135,6 +134,13 @@ class GenerateFullView(APIView):
         
         try:
             print("Starting full generation pipeline...")
+
+            # Privacy gate: first require explicit consent before doing any paid work
+            if not user_consented:
+                return Response(
+                    {'error': 'User consent is required to save this story.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
             # Step 0: Validate if image is historic (unless forced)
             # Uses automatic fallback if primary provider hits rate limit
