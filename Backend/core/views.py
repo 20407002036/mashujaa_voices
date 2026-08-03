@@ -49,7 +49,6 @@ class GalleryView(generics.ListAPIView):
     GET: List all public stories for the gallery with pagination.
     """
     serializer_class = GalleryItemSerializer
-    pagination_class = None  # Use default from settings
 
     def get_queryset(self):
         # Optimized query with proper indexing

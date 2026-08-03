@@ -135,6 +135,13 @@ class GenerateFullView(APIView):
         
         try:
             print("Starting full generation pipeline...")
+
+            # Privacy gate: first require explicit consent before doing any paid work
+            if not user_consented:
+                return Response(
+                    {'error': 'User consent is required to save this story.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
             # Step 0: Validate if image is historic (unless forced)
             # Uses automatic fallback if primary provider hits rate limit
