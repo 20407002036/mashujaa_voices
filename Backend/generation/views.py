@@ -30,13 +30,12 @@ from .services import MediaService
 
 
 def run_async(coro):
-    """Helper to run async code in sync context."""
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop.run_until_complete(coro)
+    """Helper to run async code in sync context.
+
+    asyncio.run creates and closes a fresh event loop per call, avoiding the
+    event-loop leak that came from repeatedly reusing an unclosed loop.
+    """
+    return asyncio.run(coro)
 
 
 class GenerateStoryView(APIView):
