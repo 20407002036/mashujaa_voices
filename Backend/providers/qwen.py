@@ -15,9 +15,9 @@ class QwenTTSProvider(TTSProvider):
     
     def __init__(self):
         self.api_key = settings.DASHSCOPE_API_KEY
-        self.endpoint = 'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text2audio/synthesis'
-        self.model = 'qwen3-tts-flash'
-        self.sample_rate = 24000
+        self.endpoint = settings.QWEN_TTS_ENDPOINT
+        self.model = settings.QWEN_TTS_MODEL
+        self.sample_rate = settings.TTS_SAMPLE_RATE
     
     @property
     def name(self) -> str:
@@ -25,7 +25,7 @@ class QwenTTSProvider(TTSProvider):
     
     @property
     def available_voices(self) -> list[str]:
-        return ['Cherry', 'Serena', 'Ethan', 'Chelsie']
+        return settings.QWEN_TTS_VOICES
     
     async def generate_audio(
         self, 
@@ -33,7 +33,7 @@ class QwenTTSProvider(TTSProvider):
         voice: Optional[str] = None
     ) -> AudioData:
         """Generate audio using Qwen TTS API."""
-        voice = voice or 'Cherry'
+        voice = voice or settings.QWEN_TTS_DEFAULT_VOICE
         
         headers = {
             'Authorization': f'Bearer {self.api_key}',
@@ -53,7 +53,7 @@ class QwenTTSProvider(TTSProvider):
             }
         }
         
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=settings.TTS_TIMEOUT) as client:
             response = await client.post(
                 self.endpoint,
                 headers=headers,

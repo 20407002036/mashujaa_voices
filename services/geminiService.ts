@@ -1,6 +1,11 @@
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { StoryData, AudioState } from '../types';
 
+const GEMINI_ANALYSIS_MODEL = process.env.GEMINI_ANALYSIS_MODEL || 'gemini-2.5-flash';
+const GEMINI_TTS_MODEL = process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts';
+const GEMINI_TTS_VOICE = process.env.GEMINI_TTS_VOICE || 'Kore';
+const TTS_SAMPLE_RATE = Number(process.env.TTS_SAMPLE_RATE || 24000);
+
 const getClient = () => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
@@ -29,7 +34,7 @@ export const generateStory = async (
   `;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: GEMINI_ANALYSIS_MODEL,
     contents: {
       parts: [
         {
@@ -70,13 +75,13 @@ export const generateSpeech = async (text: string): Promise<AudioState> => {
   const cleanText = text.replace(/\*\*/g, "").replace(/\*/g, "");
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash-preview-tts",
+    model: GEMINI_TTS_MODEL,
     contents: [{ parts: [{ text: cleanText }] }],
     config: {
       responseModalities: [Modality.AUDIO],
       speechConfig: {
         voiceConfig: {
-          prebuiltVoiceConfig: { voiceName: 'Kore' }, // Kore has a nice deep tone suitable for documentary
+          prebuiltVoiceConfig: { voiceName: GEMINI_TTS_VOICE },
         },
       },
     },
@@ -92,7 +97,7 @@ export const generateSpeech = async (text: string): Promise<AudioState> => {
   // Standard decodeAudioData cannot handle raw PCM. We must manually decode it.
   
   const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-    sampleRate: 24000
+    sampleRate: TTS_SAMPLE_RATE
   });
 
   const binaryString = atob(base64Audio);
@@ -104,7 +109,7 @@ export const generateSpeech = async (text: string): Promise<AudioState> => {
 
   // Convert Raw PCM (Int16) to Float32 AudioBuffer
   const pcm16 = new Int16Array(bytes.buffer);
-  const audioBuffer = audioContext.createBuffer(1, pcm16.length, 24000);
+  const audioBuffer = audioContext.createBuffer(1, pcm16.length, TTS_SAMPLE_RATE);
   const channelData = audioBuffer.getChannelData(0);
   
   for (let i = 0; i < pcm16.length; i++) {

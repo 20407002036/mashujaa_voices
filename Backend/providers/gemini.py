@@ -41,10 +41,8 @@ class GeminiVisionProvider(VisionProvider):
     
     def __init__(self):
         self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        # Use lighter model for fast validation
-        self.validation_model = 'gemini-2.0-flash-lite'
-        # Use full model for quality story generation
-        self.analysis_model = 'gemini-2.5-flash'
+        self.validation_model = settings.GEMINI_VALIDATION_MODEL
+        self.analysis_model = settings.GEMINI_ANALYSIS_MODEL
     
     @property
     def name(self) -> str:
@@ -97,8 +95,8 @@ CRITICAL INSTRUCTIONS:
             contents=contents,
             config=types.GenerateContentConfig(
                 response_mime_type='application/json',
-                max_output_tokens=1000,
-                temperature=0.3  # Lower temperature for more consistent output
+                max_output_tokens=settings.VISION_MAX_TOKENS,
+                temperature=settings.VISION_TEMPERATURE
             )
         )
         
@@ -215,7 +213,7 @@ IMPORTANT: Be strict in validation. If you have any doubt about whether it's tru
             contents=contents,
             config=types.GenerateContentConfig(
                 response_mime_type='application/json',
-                max_output_tokens=300
+                max_output_tokens=settings.VALIDATION_MAX_TOKENS
             )
         )
         
@@ -242,8 +240,8 @@ class GeminiTTSProvider(TTSProvider):
     
     def __init__(self):
         self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        self.model = 'gemini-2.5-flash-preview-tts'
-        self.sample_rate = 24000
+        self.model = settings.GEMINI_TTS_MODEL
+        self.sample_rate = settings.TTS_SAMPLE_RATE
     
     @property
     def name(self) -> str:
@@ -251,7 +249,7 @@ class GeminiTTSProvider(TTSProvider):
     
     @property
     def available_voices(self) -> list[str]:
-        return ['Kore', 'Puck', 'Charon', 'Fenrir', 'Aoede']
+        return settings.GEMINI_TTS_VOICES
     
     async def generate_audio(
         self, 
@@ -259,7 +257,7 @@ class GeminiTTSProvider(TTSProvider):
         voice: Optional[str] = None
     ) -> AudioData:
         """Generate audio using Gemini TTS model."""
-        voice = voice or 'Kore'
+        voice = voice or settings.GEMINI_TTS_DEFAULT_VOICE
         
         # Clean text of markdown
         clean_text = re.sub(r'[*_#`]', '', text)

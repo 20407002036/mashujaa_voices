@@ -152,12 +152,38 @@ TTS_PROVIDER = env('TTS_PROVIDER')
 
 # Gemini
 GEMINI_API_KEY = env('GEMINI_API_KEY', default='')
+GEMINI_VALIDATION_MODEL = env('GEMINI_VALIDATION_MODEL', default='gemini-2.0-flash-lite')
+GEMINI_ANALYSIS_MODEL = env('GEMINI_ANALYSIS_MODEL', default='gemini-2.5-flash')
+GEMINI_TTS_MODEL = env('GEMINI_TTS_MODEL', default='gemini-2.5-flash-preview-tts')
+GEMINI_TTS_VOICES = env.list('GEMINI_TTS_VOICES', default=['Kore', 'Puck', 'Charon', 'Fenrir', 'Aoede'])
+GEMINI_TTS_DEFAULT_VOICE = env('GEMINI_TTS_DEFAULT_VOICE', default='Kore')
 
 # Groq
 GROQ_API_KEY = env('GROQ_API_KEY', default='')
+GROQ_TTS_MODEL = env('GROQ_TTS_MODEL', default='canopylabs/orpheus-v1-english')
+GROQ_TTS_VOICES = env.list('GROQ_TTS_VOICES', default=['autumn', 'diana', 'hannah', 'austin', 'daniel', 'troy'])
+GROQ_TTS_DEFAULT_VOICE = env('GROQ_TTS_DEFAULT_VOICE', default='autumn')
+GROQ_TTS_ENDPOINT = env('GROQ_TTS_ENDPOINT', default='https://api.groq.com/openai/v1/audio/speech')
+GROQ_VISION_MODEL = env('GROQ_VISION_MODEL', default='meta-llama/llama-4-scout-17b-16e-instruct')
 
 # DashScope (Qwen)
 DASHSCOPE_API_KEY = env('DASHSCOPE_API_KEY', default='')
+QWEN_TTS_MODEL = env('QWEN_TTS_MODEL', default='qwen3-tts-flash')
+QWEN_TTS_VOICES = env.list('QWEN_TTS_VOICES', default=['Cherry', 'Serena', 'Ethan', 'Chelsie'])
+QWEN_TTS_DEFAULT_VOICE = env('QWEN_TTS_DEFAULT_VOICE', default='Cherry')
+QWEN_TTS_ENDPOINT = env('QWEN_TTS_ENDPOINT', default='https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text2audio/synthesis')
+
+# Edge TTS
+EDGE_TTS_URL = env('EDGE_TTS_URL', default='https://openai-edge-tts-lf7c.onrender.com')
+EDGE_TTS_VOICES = env.list('EDGE_TTS_VOICES', default=['autumn', 'diana', 'hannah', 'austin', 'daniel', 'troy'])
+
+# Model Parameters
+VISION_TEMPERATURE = env.float('VISION_TEMPERATURE', default=0.3)
+VISION_MAX_TOKENS = env.int('VISION_MAX_TOKENS', default=1000)
+VALIDATION_TEMPERATURE = env.float('VALIDATION_TEMPERATURE', default=0.5)
+VALIDATION_MAX_TOKENS = env.int('VALIDATION_MAX_TOKENS', default=300)
+TTS_SAMPLE_RATE = env.int('TTS_SAMPLE_RATE', default=24000)
+TTS_TIMEOUT = env.float('TTS_TIMEOUT', default=60.0)
 
 
 # Supabase Storage (S3-compatible)
@@ -168,8 +194,6 @@ SUPABASE_S3_ACCESS_KEY = env('SUPABASE_S3_ACCESS_KEY', default='')
 SUPABASE_S3_SECRET_KEY = env('SUPABASE_S3_SECRET_KEY', default='')
 SUPABASE_BUCKET_IMAGES = env('SUPABASE_BUCKET_IMAGES', default='mashujaa-images')
 SUPABASE_BUCKET_AUDIO = env('SUPABASE_BUCKET_AUDIO', default='mashujaa-audio')
-
-EDGE_TTS_URL = env('EDGE_TTS_URL', default='https://openai-edge-tts-lf7c.onrender.com')
 
 # Configure django-storages for Supabase S3 if credentials are provided
 if SUPABASE_S3_ACCESS_KEY and SUPABASE_S3_SECRET_KEY:

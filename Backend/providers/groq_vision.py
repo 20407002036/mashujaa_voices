@@ -37,9 +37,8 @@ class GroqVisionProvider(VisionProvider):
     
     def __init__(self):
         self.client = AsyncGroq(api_key=settings.GROQ_API_KEY)
-        # Use Llama 4 Scout for both validation and story generation
-        self.validation_model = 'meta-llama/llama-4-scout-17b-16e-instruct'
-        self.analysis_model = 'meta-llama/llama-4-scout-17b-16e-instruct'
+        self.validation_model = settings.GROQ_VISION_MODEL
+        self.analysis_model = settings.GROQ_VISION_MODEL
     
     @property
     def name(self) -> str:
@@ -97,8 +96,8 @@ CRITICAL INSTRUCTIONS:
                     ]
                 }
             ],
-            temperature=0.3,  # Lower temperature for more consistent JSON output
-            max_tokens=1000,
+            temperature=settings.VISION_TEMPERATURE,
+            max_tokens=settings.VISION_MAX_TOKENS,
         )
         
         text = response.choices[0].message.content.strip()
@@ -222,8 +221,8 @@ IMPORTANT: Be strict in validation. If you have any doubt about whether it's tru
                     ]
                 }
             ],
-            temperature=0.5,
-            max_tokens=300,
+            temperature=settings.VALIDATION_TEMPERATURE,
+            max_tokens=settings.VALIDATION_MAX_TOKENS,
         )
         
         text = response.choices[0].message.content.strip()
