@@ -44,6 +44,38 @@ class GroqVisionProvider(VisionProvider):
     def name(self) -> str:
         return 'groq'
     
+    def _extract_content(self, response) -> str:
+        """
+        Extract the usable text from a Groq response.
+
+        Reasoning models return chain-of-thought reasoning separate from the
+        final answer. We always want the final answer (message.content). If the
+        model inlines reasoning into content, we strip it below via JSON
+        extraction, so this simply returns the content string safely.
+        """
+        message = response.choices[0].message
+        content = getattr(message, 'content', None) or ''
+        return content.strip()
+    
+    @staticmethod
+    def _extract_json(text: str) -> str:
+        """Strip thinking/reasoning preamble and markdown fences, returning only the JSON object text."""
+        if '```' in text:
+            text = re.sub(r'^```(?:json)?\s*\n?', '', text, flags=re.MULTILINE)
+            text = re.sub(r'\n?```\s*$', '', text, flags=re.MULTILINE)
+
+        # Drop any leading thinking / reasoning preamble before the first {
+        start_idx = text.find('{')
+        if start_idx != -1:
+            text = text[start_idx:]
+
+        # Drop any trailing text after the last }
+        last_brace = text.rfind('}')
+        if last_brace != -1:
+            text = text[:last_brace + 1]
+
+        return text.strip()
+    
     async def analyze_image(
         self, 
         image_data: bytes, 
@@ -51,10 +83,8 @@ class GroqVisionProvider(VisionProvider):
     ) -> StoryData:
         """Analyze image using Groq's Llama Vision model."""
         
-        # Encode image to base64
-        image_base64 = base64.b64encode(image_data).decode('utf-8')
-        
-        # Build prompt (same as Gemini for consistency)
+        # Build prompt with image embedded as markdown image (string content
+        # form is required by some Groq models, which reject content arrays).
         context_text = f"\n\nUser context: {context}" if context else ""
         
         prompt = f"""You are a Kenyan historian and storyteller specializing in the rich tapestry of Kenya's past. 
@@ -76,56 +106,27 @@ CRITICAL INSTRUCTIONS:
 - Do NOT include any explanatory text
 - The response must start with {{ and end with }}"""
 
+        # Use string content form with the image embedded inline.
+        # Groq's Llama vision models accept an image data URI in text content
+        # and reject a structured content array in some deployments.
+        image_data_uri = f"data:image/jpeg;base64,{base64.b64encode(image_data).decode('utf-8')}"
+        user_content = f"![image]({image_data_uri})\n\n{prompt}"
+
         # Create chat completion with vision
         response = await self.client.chat.completions.create(
             model=self.analysis_model,
             messages=[
                 {
                     'role': 'user',
-                    'content': [
-                        {
-                            'type': 'text',
-                            'text': prompt
-                        },
-                        {
-                            'type': 'image_url',
-                            'image_url': {
-                                'url': f'data:image/jpeg;base64,{image_base64}'
-                            }
-                        }
-                    ]
+                    'content': user_content
                 }
             ],
             temperature=settings.VISION_TEMPERATURE,
             max_tokens=settings.VISION_MAX_TOKENS,
         )
         
-        text = response.choices[0].message.content.strip()
-        
-        # Remove markdown code blocks if present (handle various formats)
-        if '```' in text:
-            # Remove opening code fence
-            text = re.sub(r'^```(?:json)?\s*\n?', '', text, flags=re.MULTILINE)
-            # Remove closing code fence
-            text = re.sub(r'\n?```\s*$', '', text, flags=re.MULTILINE)
-        
-        # Remove any leading/trailing whitespace or text outside JSON
-        # Try to extract JSON object if there's extra text
-        if not text.startswith('{'):
-            # Find the first { and take everything from there
-            start_idx = text.find('{')
-            if start_idx != -1:
-                text = text[start_idx:]
-        
-        # Remove any trailing text after the last }
-        if text.endswith('}'):
-            pass  # Already good
-        else:
-            last_brace = text.rfind('}')
-            if last_brace != -1:
-                text = text[:last_brace + 1]
-        
-        text = text.strip()
+        text = self._extract_content(response)
+        text = self._extract_json(text)
         
         print(f"[DEBUG] Groq analyze_image response text:\n{text}")
         
@@ -167,7 +168,7 @@ CRITICAL INSTRUCTIONS:
                 - issues: list[str] (specific problems found if not historic)
         """
         # Encode image to base64
-        image_base64 = base64.b64encode(image_data).decode('utf-8')
+        image_data_uri = f"data:image/jpeg;base64,{base64.b64encode(image_data).decode('utf-8')}"
         
         context_text = f"\n\nUser-provided context: {context}" if context else ""
         
@@ -201,38 +202,35 @@ Your response MUST be a valid JSON object with these exact fields:
 
 IMPORTANT: Be strict in validation. If you have any doubt about whether it's truly historical, mark is_historic as false. Return ONLY the JSON object."""
 
+        # Use string content form (Groq models reject content arrays here)
+        user_content = f"![image]({image_data_uri})\n\n{prompt}"
+
         # Create chat completion with vision - use faster model for validation
         response = await self.client.chat.completions.create(
             model=self.validation_model,
             messages=[
                 {
                     'role': 'user',
-                    'content': [
-                        {
-                            'type': 'text',
-                            'text': prompt
-                        },
-                        {
-                            'type': 'image_url',
-                            'image_url': {
-                                'url': f'data:image/jpeg;base64,{image_base64}'
-                            }
-                        }
-                    ]
+                    'content': user_content
                 }
             ],
             temperature=settings.VALIDATION_TEMPERATURE,
             max_tokens=settings.VALIDATION_MAX_TOKENS,
         )
         
-        text = response.choices[0].message.content.strip()
+        text = self._extract_content(response)
+        text = self._extract_json(text)
         
-        # Remove markdown code blocks if present
-        if text.startswith('```'):
-            text = re.sub(r'^```(?:json)?\n?', '', text)
-            text = re.sub(r'\n?```$', '', text)
-        
-        data = json.loads(text)
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as e:
+            repaired_text = _attempt_json_repair(text)
+            try:
+                data = json.loads(repaired_text)
+            except json.JSONDecodeError as e2:
+                print(f"[ERROR] Failed to parse Groq validation JSON: {e2}")
+                print(f"[ERROR] Problematic text (first 500 chars): {text[:500]}")
+                raise Exception(f"Invalid JSON response from Groq: {str(e2)}")
         
         return {
             'is_historic': data.get('is_historic', False),
