@@ -15,7 +15,7 @@ class EdgeTTSProvider(TTSProvider):
     
     def __init__(self):
         self.endpoint = settings.EDGE_TTS_URL
-        self.sample_rate = 24000
+        self.sample_rate = settings.TTS_SAMPLE_RATE
     
     @property
     def name(self) -> str:
@@ -23,14 +23,7 @@ class EdgeTTSProvider(TTSProvider):
     
     @property
     def available_voices(self) -> list[str]:
-        return [
-            'autumn',
-            'diana',
-            'hannah',
-            'austin',
-            'daniel',
-            'troy'
-        ]
+        return settings.EDGE_TTS_VOICES
     
     async def generate_audio(
         self, 
@@ -44,7 +37,7 @@ class EdgeTTSProvider(TTSProvider):
             'response_format': 'mp3',
         }
         
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=settings.TTS_TIMEOUT) as client:
             response = await client.post(
                 self.endpoint,
                 json=payload,

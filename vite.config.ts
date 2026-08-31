@@ -20,7 +20,11 @@ export default defineConfig(({ mode }) => {
       plugins: [react()],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+        'process.env.GEMINI_ANALYSIS_MODEL': JSON.stringify(env.GEMINI_ANALYSIS_MODEL || 'gemini-2.5-flash'),
+        'process.env.GEMINI_TTS_MODEL': JSON.stringify(env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts'),
+        'process.env.GEMINI_TTS_VOICE': JSON.stringify(env.GEMINI_TTS_VOICE || 'Kore'),
+        'process.env.TTS_SAMPLE_RATE': JSON.stringify(env.TTS_SAMPLE_RATE || 24000)
       },
       resolve: {
         alias: {

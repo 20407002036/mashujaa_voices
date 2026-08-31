@@ -15,9 +15,9 @@ class GroqTTSProvider(TTSProvider):
     
     def __init__(self):
         self.api_key = settings.GROQ_API_KEY
-        self.endpoint = 'https://api.groq.com/openai/v1/audio/speech'
-        self.model = 'canopylabs/orpheus-v1-english'
-        self.sample_rate = 24000
+        self.endpoint = settings.GROQ_TTS_ENDPOINT
+        self.model = settings.GROQ_TTS_MODEL
+        self.sample_rate = settings.TTS_SAMPLE_RATE
     
     @property
     def name(self) -> str:
@@ -25,14 +25,7 @@ class GroqTTSProvider(TTSProvider):
     
     @property
     def available_voices(self) -> list[str]:
-        return [
-            'autumn',
-            'diana',
-            'hannah',
-            'austin',
-            'daniel',
-            'troy'
-            ]
+        return settings.GROQ_TTS_VOICES
     
     async def generate_audio(
         self, 
@@ -40,7 +33,7 @@ class GroqTTSProvider(TTSProvider):
         voice: Optional[str] = None
     ) -> AudioData:
         """Generate audio using Groq TTS API."""
-        voice = voice or 'autumn'  # Default to autumn for documentary style
+        voice = voice or settings.GROQ_TTS_DEFAULT_VOICE
         
         headers = {
             'Authorization': f'Bearer {self.api_key}',
@@ -54,7 +47,7 @@ class GroqTTSProvider(TTSProvider):
             'response_format': 'wav',
         }
         
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=settings.TTS_TIMEOUT) as client:
             response = await client.post(
                 self.endpoint,
                 headers=headers,
